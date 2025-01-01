@@ -1,3 +1,37 @@
+//Project State Management
+class ProjectState {
+  private projects: any[] = [];
+  private static instance: ProjectState;
+  private listeners: any[] = [];
+  private constructor() {}
+
+  static getInstance() {
+    if (this.instance) {
+      return this.instance;
+    }
+    this.instance = new ProjectState();
+    return this.instance;
+  }
+
+  addListener(listenerFn: Function) {
+    this.listeners.push(listenerFn);
+  }
+  addProject(title: string, description: string, numOfpeople: number) {
+    const newProject = {
+      id: Math.random().toString,
+      title: title,
+      description: description,
+      people: numOfpeople,
+    };
+
+    this.projects.push(newProject);
+    for (const listenerFn of this.listeners) {
+      listenerFn(this.projects.slice());
+    }
+  }
+}
+const projectState = ProjectState.getInstance();
+
 //Validation
 interface ValidationConfig {
   value: string | number;
@@ -61,6 +95,7 @@ class ProjectList {
   templateElement: HTMLTemplateElement;
   hostElement: HTMLDivElement;
   element: HTMLElement;
+  assignProjects: any[] = [];
 
   constructor(private type: "active" | "finished") {
     this.templateElement = document.getElementById(
@@ -73,11 +108,27 @@ class ProjectList {
       true
     );
     this.element = importedNode.firstElementChild as HTMLElement;
-    this.element.id = `${this.type}-project`;
+    this.element.id = `${this.type}-projects`;
+
+    projectState.addListener((projects: any[]) => {
+      this.assignProjects = projects;
+      this.renderProjects();
+    });
+
     this.attach();
     this.renderContent();
   }
 
+  private renderProjects() {
+    const listEl = document.getElementById(
+      `${this.type}-projects-list`
+    )! as HTMLUListElement;
+    for (const prjItem of this.assignProjects) {
+      const listItem = document.createElement("li");
+      listItem.textContent = prjItem.title;
+      listEl.appendChild(listItem);
+    }
+  }
   private renderContent() {
     const listId = `${this.type}-projects-list`;
     this.element.querySelector("ul")!.id = listId;
@@ -170,7 +221,9 @@ class ProjectInput {
     const userInput = this.getUserInput();
     if (Array.isArray(userInput)) {
       const [title, desc, people] = userInput;
-      console.log(title, desc, people);
+
+      projectState.addProject(title, desc, people);
+      console.log(projectState);
     }
     this.clearInputs();
   }
